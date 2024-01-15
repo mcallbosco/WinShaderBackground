@@ -14,10 +14,16 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using static OpenGL.Wgl;
 
+
 namespace DrawBehindDesktopIcons
 {
+
     class Program
     {
+
+        static ContextMenu contextMenu = new ContextMenu();
+        static NotifyIcon taskbarIcon = new NotifyIcon();
+        static Thread t = new Thread(new ParameterizedThreadStart(Worker));
         [StructLayout(LayoutKind.Sequential)]
         public struct NativeMessage
         {
@@ -35,9 +41,38 @@ namespace DrawBehindDesktopIcons
         static extern bool PeekMessage(out NativeMessage lpMsg, HandleRef hWnd, uint wMsgFilterMin,
    uint wMsgFilterMax, uint wRemoveMsg);
 
+        
         private static void Worker(object num)
         {
-            GlOnBackground backgroundRenderer = new GlOnBackground(File.Open("Shader2.glsl", FileMode.Open, FileAccess.Read));
+
+            
+            int fpsValue =  int.Parse(GetSettingStateString("shaderFPS", "60"));
+            float timeScale = float.Parse(GetSettingStateString("shaderTimeScale", "10"));
+            string shaderPath = GetSettingStateString("shaderPath", "Shader2.glsl");
+            GlOnBackground backgroundRenderer = null;
+
+            try
+            {
+                backgroundRenderer = new GlOnBackground(File.Open(shaderPath, FileMode.Open, FileAccess.Read));
+
+
+            }
+            catch (Exception e)
+            {
+                Thread thread = new Thread(spawnSettings);
+
+                // set the thread's apartment state to STA
+
+                MessageBox.Show("Error loading shader Please Select New One\n " + e.Message);
+                thread.SetApartmentState(ApartmentState.STA);
+
+                // start the thread
+                thread.Start();
+                // wait for the thread to finish
+                thread.Join();
+
+                Application.Exit();
+            }
 
             bool alive = true;
             var timer = new System.Timers.Timer(10000.0);
@@ -50,139 +85,87 @@ namespace DrawBehindDesktopIcons
 
             while (alive)
             {
-                backgroundRenderer.Render((float)stopWatch.Elapsed.TotalSeconds);
-                Thread.Sleep((int)(1000.0f / 60.0f));
+                backgroundRenderer.Render((float)(stopWatch.Elapsed.TotalSeconds * (float)(timeScale/10.0f)));
+                Thread.Sleep((1000 / fpsValue));
                 NativeMessage nativeMsg = new NativeMessage();
                 PeekMessage(out nativeMsg, new HandleRef(), 0, 0, 1);
             }
         }
 
-        static void Main(string[] args)
+        private static void spawnSettings()
         {
-            Worker(null);
-            //Thread t = new Thread(new ParameterizedThreadStart(Worker));
-            //t.Start()
-            return;
-            //}));
-            //thread.Start();
-            //glShaderSource(shader, 1, (const GLchar*const*)&_shaderCode, &len);
-
-            //glCompileShader(shader);
-            //GLint status = 0;
-            //glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-            //if (status == GL_FALSE)
-            //{
-            //    GLint maxLength = 0;
-            //    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
-            //    char* buffer = (char*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, maxLength);
-            //    glGetShaderInfoLog(shader, maxLength, &maxLength, &buffer[0]);
-            //    OutputDebugString("compile shader info log");
-            //    OutputDebugString((char*)buffer);
-            //    glGetProgramInfoLog(shader, maxLength, &maxLength, &buffer[0]);
-            //    OutputDebugString("compile program info log");
-            //    OutputDebugString((char*)buffer);
-            //}
-
-            //GLuint program = glCreateProgram();
-
-            // Attach our shaders to our program
-            //glAttachShader(program, shader);
-            // Link our program
-            //glLinkProgram(program);
-
-            // Note the different functions here: glGetProgram* instead of glGetShader*.
-            //GLint isLinked = 0;
-            //glGetProgramiv(program, GL_LINK_STATUS, &isLinked);
-            //if (isLinked == GL_FALSE)
-            //{
-            //    GLint maxLength = 0;
-            //    glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
-
-            //     The maxLength includes the NULL character
-            //    std::vector<GLchar> infoLog(maxLength);
-
-            //    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
-            //    char* buffer = (char*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, maxLength);
-
-            //    glGetProgramInfoLog(program, maxLength, &maxLength, &buffer[0]);
-
-            //    OutputDebugString("link program info log");
-            //    OutputDebugString((char*)buffer);
-            //}
-            //glUseProgram(program);
-
-
-
-            // Create a Graphics instance from the Device Context
-            //using (Graphics g = Graphics.FromHdc(dc))
-            //{
-            //    //g.GetHdc()
-            //    // Use the Graphics instance to draw a white rectangle in the upper 
-            //    // left corner. In case you have more than one monitor think of the 
-            //    // drawing area as a rectangle that spans across all monitors, and 
-            //    // the 0,0 coordinate beeing in the upper left corner.
-            //    g.FillRectangle(new SolidBrush(Color.White), 0, 0, 500, 500);
-
-            //}
-            // make sure to release the device context after use.
-            //W32.ReleaseDC(workerw, dc);
-            return;
-
-            // Demo 2: Demo 2: Put a Windows Form behind desktop icons
-            //int WS_CHILD = 0x40000000;
-            //int WS_VISIBLE = 0x10000000;
-            //int WS_CLIPSIBLINGS = 0x04000000;
-            //int WS_CLIPCHILDREN = 0x02000000;
-
-
-            //var cParams = new CreateParams();
-            //cParams.X = 0;
-            //cParams.Y = 0;
-            //cParams.Width = 1920;
-            //cParams.Height = 1080;
-            //cParams.Style = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
-            //var nativeWin = new NativeWindow();
-            //nativeWin.CreateHandle(cParams);
-
-            //Form form = new Form();
-            //form.Text = "Test Window";
-            ////var subWinDC = W32.GetDC(nativeWin.Handle);
-
-            ////    W32.SetParent(nativeWin.Handle, workerw);
-            //form.Load += new EventHandler((s, e) =>
-            //{
-            //    // Move the form right next to the in demo 1 drawn rectangle
-            //    form.Width = 500;
-            //    form.Height = 500;
-            //    form.Left = 500;
-            //    form.Top = 0;
-
-            //    // Add a randomly moving button to the form
-            //    Button button = new Button() { Text = "Catch Me" };
-            //    form.Controls.Add(button);
-            //    Random rnd = new Random();
-            //    System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
-            //    timer.Interval = 100;
-            //    timer.Tick += new EventHandler((sender, eventArgs) =>
-            //    {
-            //        button.Left = rnd.Next(0, form.Width - button.Width);
-            //        button.Top = rnd.Next(0, form.Height - button.Height);
-            //    });
-            //    timer.Start();
-
-            //    // Those two lines make the form a child of the WorkerW, 
-            //    // thus putting it behind the desktop icons and out of reach 
-            //    // for any user intput. The form will just be rendered, no 
-            //    // keyboard or mouse input will reach it. You would have to use 
-            //    // WH_KEYBOARD_LL and WH_MOUSE_LL hooks to capture mouse and 
-            //    // keyboard input and redirect it to the windows form manually, 
-            //    // but thats another story, to be told at a later time.
-            //    W32.SetParent(form.Handle, workerw);
-            //});
-
-            //// Start the Application Loop for the Form.
-            //Application.Run(form);
+            Application.Run(new SettingsForm());
         }
+
+
+        [STAThread]
+        static void Main()
+        {
+
+            MenuItem contextItemSettings = new MenuItem();
+            MenuItem contextItemExit = new MenuItem();
+            //Setup the context menu items
+            contextItemSettings.Text = "&Settings";
+            contextItemExit.Text = "&Exit";
+            contextItemSettings.Click += new EventHandler(contextMenuSettings_Click);
+            contextItemExit.Click += new EventHandler(contextMenuExit_Click);
+            //Add the context menu items to the context menu
+            contextMenu.MenuItems.Add(contextItemSettings);
+            contextMenu.MenuItems.Add(contextItemExit);
+            //load in icon from resources
+            Icon iconForTaskbar = Properties.Resources.icon;
+            taskbarIcon.Icon = iconForTaskbar;
+            taskbarIcon.ContextMenu = contextMenu;
+
+            taskbarIcon.Visible = true;
+            taskbarIcon.Text = "DrawBehindDesktopIcons";
+
+            //create exit handler
+            Application.ApplicationExit += new EventHandler(Application_ApplicationExit);
+            //make thread sta mode
+
+            t.IsBackground = true;
+
+
+
+
+
+
+
+            //start shader thead
+            t.Start();
+            
+            Application.Run();
+
+        }
+
+        private static void Application_ApplicationExit(object sender, EventArgs e)
+        {
+            taskbarIcon.Visible = false;
+            t.Abort();
+        
+
+        }
+
+
+        private static void taskbarIcon_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            Application.Exit();
+        }
+
+        private static void contextMenuExit_Click(object sender, EventArgs e)
+        {
+            Application.Exit();
+
+
+        }
+
+        private static void contextMenuSettings_Click(object sender, EventArgs e)
+        {
+            var settingsForm = new SettingsForm();
+            settingsForm.ShowDialog();
+        }
+
         private static string GetShaderInfoLog(uint shader)
         {
             const int MaxLength = 1024;
@@ -194,5 +177,37 @@ namespace DrawBehindDesktopIcons
 
             return (infoLog.ToString());
         }
+        private static bool GetSettingState(string settingName, bool defaultValueBool = false)
+        {
+            int defaultValue = defaultValueBool ? 1 : 0;
+            var subKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"SOFTWARE\ShaderBackground");
+
+            var keyValue = subKey.GetValue(settingName);
+
+            if (keyValue == null)
+            {
+                subKey.SetValue(settingName, defaultValue);
+                return defaultValueBool;
+            }
+
+            return (int)keyValue == 1;
+        }
+
+        private static String GetSettingStateString(string settingName, string defaultValue)
+        {
+            var subKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"SOFTWARE\ShaderBackground");
+
+            var keyValue = subKey.GetValue(settingName);
+
+            if (keyValue == null)
+            {
+                subKey.SetValue(settingName, defaultValue, Microsoft.Win32.RegistryValueKind.String);
+                return defaultValue;
+            }
+
+
+            return keyValue.ToString();
+        }
+
     }
 }
